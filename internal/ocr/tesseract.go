@@ -7,20 +7,27 @@ import (
 )
 
 type tesseractProcessor struct {
-	languages string
+	pool chan *gosseract.Client
 }
 
-func NewTesseractProcessor(languages string) Processor {
-	return &tesseractProcessor{languages: languages}
+func NewTesseractProcessor(languages string, poolSize int) Processor {
+	pool := make(chan *gosseract.Client, poolSize)
+
+	for i := 0; i < poolSize; i++ {
+		client := gosseract.NewClient()
+		client.SetLanguage(languages)
+		pool <- client
+	}
+
+	return &tesseractProcessor{pool: pool}
 }
 
 func (t *tesseractProcessor) Process(imagePath string) (string, error) {
-	client := gosseract.NewClient()
-	defer client.Close()
+	client := <-t.pool
 
-	if err := client.SetLanguage(t.languages); err != nil {
-		return "", fmt.Errorf("erro ao definir idioma: %w", err)
-	}
+	defer func() {
+		t.pool <- client
+	}()
 
 	if err := client.SetImage(imagePath); err != nil {
 		return "", fmt.Errorf("erro ao carregar imagem: %w", err)

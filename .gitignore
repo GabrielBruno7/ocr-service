@@ -10,3 +10,6 @@
 .DS_Store
 
 tmp/
+
+testdata/*.png
+!testdata/.gitkeep
