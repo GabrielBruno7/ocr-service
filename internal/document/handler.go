@@ -2,7 +2,6 @@ package document
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -10,8 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gabrielbruno7/ocr-service/internal/apperr"
 	"github.com/gabrielbruno7/ocr-service/internal/ocr"
 )
+
+const maxUploadSize = 10 << 20
 
 type Handler struct {
 	processor ocr.Processor
@@ -29,10 +31,15 @@ type extractResponse struct {
 func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		h.log.Warn("arquivo não encontrado no formulário", "error", err)
-		http.Error(w, "arquivo 'file' não encontrado no formulário", http.StatusBadRequest)
+		if err.Error() == "http: request body too large" {
+			apperr.Respond(w, h.log, apperr.FileTooLarge(err))
+			return
+		}
+		apperr.Respond(w, h.log, apperr.InvalidFile(err))
 		return
 	}
 	defer file.Close()
@@ -41,14 +48,14 @@ func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
 
 	tmpPath, err := saveTempFile(file, header.Filename)
 	if err != nil {
-		http.Error(w, "erro ao salvar arquivo temporário", http.StatusInternalServerError)
+		apperr.Respond(w, h.log, apperr.OCRFailed(err))
 		return
 	}
 	defer os.Remove(tmpPath)
 
 	text, err := h.processor.Process(tmpPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("erro ao processar OCR: %v", err), http.StatusInternalServerError)
+		apperr.Respond(w, h.log, apperr.OCRFailed(err))
 		return
 	}
 
