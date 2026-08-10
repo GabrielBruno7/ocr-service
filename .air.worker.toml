@@ -1,0 +1,12 @@
+root = "."
+tmp_dir = "tmp-worker"
+
+[build]
+  cmd = "go build -buildvcs=false -o ./tmp-worker/worker ./cmd/worker"
+  entrypoint = "./tmp-worker/worker"
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "tmp-worker", "vendor"]
+  delay = 1000
+
+[log]
+  time = true

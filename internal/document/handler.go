@@ -2,45 +2,36 @@ package document
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/gabrielbruno7/ocr-service/internal/apperr"
-	"github.com/gabrielbruno7/ocr-service/internal/ocr"
+	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
 )
 
 const maxUploadSize = 10 << 20
 
 type Handler struct {
-	processor  ocr.Processor
 	repository *Repository
+	queue      *queue.Queue
+	uploadDir  string
 	log        *slog.Logger
 }
 
-func NewHandler(
-	processor ocr.Processor,
-	repository *Repository,
-	log *slog.Logger,
-) *Handler {
-	return &Handler{
-		processor:  processor,
-		repository: repository,
-		log:        log,
-	}
+func NewHandler(repository *Repository, q *queue.Queue, uploadDir string, log *slog.Logger) *Handler {
+	return &Handler{repository: repository, queue: q, uploadDir: uploadDir, log: log}
 }
 
 type extractResponse struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	file, header, err := r.FormFile("file")
@@ -56,50 +47,46 @@ func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
 
 	h.log.Info("upload recebido", "filename", header.Filename, "size_bytes", header.Size)
 
-	tmpPath, err := saveTempFile(file, header.Filename)
-	if err != nil {
-		apperr.Respond(w, h.log, apperr.OCRFailed(err))
-		return
-	}
-	defer os.Remove(tmpPath)
-
-	text, err := h.processor.Process(tmpPath)
+	id, err := h.repository.CreatePending(r.Context(), header.Filename)
 	if err != nil {
 		apperr.Respond(w, h.log, apperr.OCRFailed(err))
 		return
 	}
 
-	id, err := h.repository.Create(r.Context(), header.Filename, text)
-	if err != nil {
+	if err := h.saveUploadedFile(file, id.String(), header.Filename); err != nil {
 		apperr.Respond(w, h.log, apperr.OCRFailed(err))
 		return
 	}
 
-	h.log.Info("ocr concluído",
-		"filename", header.Filename,
-		"duration_ms", time.Since(start).Milliseconds(),
-		"text_length", len(text),
-	)
+	if err := PublishOCRJob(r.Context(), h.queue, id.String()); err != nil {
+		apperr.Respond(w, h.log, apperr.OCRFailed(err))
+		return
+	}
+
+	h.log.Info("documento enfileirado", "document_id", id, "filename", header.Filename)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(extractResponse{ID: id.String(), Text: text})
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(extractResponse{ID: id.String(), Status: "pending"})
 }
 
-func saveTempFile(src io.Reader, originalName string) (string, error) {
-	if err := os.MkdirAll("tmp/uploads", 0755); err != nil {
-		return "", err
+func (h *Handler) saveUploadedFile(src io.Reader, documentID, originalName string) error {
+	if err := os.MkdirAll(h.uploadDir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório de uploads: %w", err)
 	}
 
-	dstPath := filepath.Join("tmp/uploads", originalName)
+	ext := filepath.Ext(originalName)
+	dstPath := filepath.Join(h.uploadDir, documentID+ext)
+
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("erro ao salvar arquivo: %w", err)
 	}
 	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		return "", err
+		return fmt.Errorf("erro ao copiar arquivo: %w", err)
 	}
 
-	return dstPath, nil
+	return nil
 }

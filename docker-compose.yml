@@ -8,6 +8,7 @@ services:
     volumes:
       - .:/app
       - /app/tmp
+      - uploads_data:/app/uploads
     environment:
       PORT: 8080
       OCR_LANGUAGE: por
@@ -15,6 +16,36 @@ services:
       DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr_service?sslmode=disable
     depends_on:
       - postgres
+      - rabbitmq
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["air", "-c", ".air.worker.toml"]
+    volumes:
+      - .:/app
+      - /app/tmp-worker
+      - uploads_data:/app/uploads
+    environment:
+      OCR_LANGUAGE: por
+      OCR_POOL_SIZE: 4
+      DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr_service?sslmode=disable
+      AMQP_URL: amqp://ocr:ocr@rabbitmq:5672/
+      UPLOAD_DIR: /app/uploads
+      PROCESSING_TIMEOUT: 5m
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ocr
+      RABBITMQ_DEFAULT_PASS: ocr
 
   postgres:
     image: postgres:16-alpine
@@ -36,3 +67,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
