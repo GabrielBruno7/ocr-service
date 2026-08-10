@@ -1,19 +1,18 @@
 package routes
 
-import (
-	"github.com/gabrielbruno7/ocr-service/internal/document"
-	"github.com/gin-gonic/gin"
-)
+import "github.com/gin-gonic/gin"
 
-func New(documentHandler *document.Handler) *gin.Engine {
+type RouteRegistrar interface {
+	RegisterRoutes(router *gin.Engine)
+}
+
+func New(handlers ...RouteRegistrar) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/health", func(c *gin.Context) { c.String(200, "ok") })
 
-	documents := router.Group("/documents")
-	{
-		documents.POST("/extract", documentHandler.Extract)
-		documents.GET("/:id", documentHandler.Get)
+	for _, r := range handlers {
+		r.RegisterRoutes(router)
 	}
 
 	return router

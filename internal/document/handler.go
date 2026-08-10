@@ -121,3 +121,11 @@ func (h *Handler) saveUploadedFile(src io.Reader, documentID, originalName strin
 
 	return nil
 }
+
+func (h *Handler) RegisterRoutes(router *gin.Engine) {
+	documents := router.Group("/documents")
+	{
+		documents.POST("/extract", h.Extract)
+		documents.GET("/:id", h.Get)
+	}
+}

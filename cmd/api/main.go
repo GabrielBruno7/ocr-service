@@ -24,17 +24,18 @@ func main() {
 	}
 	defer db.Close()
 
-	q, err := queue.New(cfg.AMQPURL)
+	queue, err := queue.New(cfg.AMQPURL)
 	if err != nil {
 		log.Error("erro ao conectar no RabbitMQ", "error", err)
 		return
 	}
-	defer q.Close()
+	defer queue.Close()
 
 	repository := document.NewRepository(db)
-	docHandler := document.NewHandler(repository, q, cfg.UploadDir, log)
 
-	router := routes.New(docHandler)
+	router := routes.New(
+		document.NewHandler(repository, queue, cfg.UploadDir, log),
+	)
 
 	log.Info("servidor iniciado", "port", cfg.Port)
 	if err := router.Run(":" + cfg.Port); err != nil {
