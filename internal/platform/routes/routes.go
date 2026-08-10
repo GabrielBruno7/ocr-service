@@ -1,21 +1,20 @@
 package routes
 
 import (
-	"log/slog"
-	"net/http"
-
 	"github.com/gabrielbruno7/ocr-service/internal/document"
+	"github.com/gin-gonic/gin"
 )
 
-func New(docHandler *document.Handler, log *slog.Logger) http.Handler {
-	mux := http.NewServeMux()
+func New(documentHandler *document.Handler) *gin.Engine {
+	router := gin.Default()
 
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/documents/extract", docHandler.Extract)
+	router.GET("/health", func(c *gin.Context) { c.String(200, "ok") })
 
-	return mux
-}
+	documents := router.Group("/documents")
+	{
+		documents.POST("/extract", documentHandler.Extract)
+		documents.GET("/:id", documentHandler.Get)
+	}
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("ok"))
+	return router
 }

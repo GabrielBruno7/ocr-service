@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/gabrielbruno7/ocr-service/internal/document"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/config"
@@ -35,10 +34,10 @@ func main() {
 	repository := document.NewRepository(db)
 	docHandler := document.NewHandler(repository, q, cfg.UploadDir, log)
 
-	router := routes.New(docHandler, log)
+	router := routes.New(docHandler)
 
 	log.Info("servidor iniciado", "port", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
+	if err := router.Run(":" + cfg.Port); err != nil {
 		log.Error("erro ao iniciar servidor", "error", err)
 	}
 }

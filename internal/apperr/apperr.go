@@ -53,6 +53,15 @@ func OCRFailed(err error) *AppError {
 	}
 }
 
+func NotFound(err error) *AppError {
+	return &AppError{
+		Code:       "document_not_found",
+		Message:    "documento não encontrado",
+		HTTPStatus: http.StatusNotFound,
+		Err:        err,
+	}
+}
+
 func Respond(w http.ResponseWriter, log *slog.Logger, err error) {
 	var appErr *AppError
 	if errors.As(err, &appErr) {

@@ -1,7 +1,6 @@
 package document
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/gabrielbruno7/ocr-service/internal/apperr"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const maxUploadSize = 10 << 20
@@ -31,43 +32,73 @@ type extractResponse struct {
 	Status string `json:"status"`
 }
 
-func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+func (h *Handler) Extract(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadSize)
 
-	file, header, err := r.FormFile("file")
+	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		if err.Error() == "http: request body too large" {
-			apperr.Respond(w, h.log, apperr.FileTooLarge(err))
+			apperr.Respond(c.Writer, h.log, apperr.FileTooLarge(err))
 			return
 		}
-		apperr.Respond(w, h.log, apperr.InvalidFile(err))
+		apperr.Respond(c.Writer, h.log, apperr.InvalidFile(err))
 		return
 	}
 	defer file.Close()
 
 	h.log.Info("upload recebido", "filename", header.Filename, "size_bytes", header.Size)
 
-	id, err := h.repository.CreatePending(r.Context(), header.Filename)
+	id, err := h.repository.CreatePending(c.Request.Context(), header.Filename)
 	if err != nil {
-		apperr.Respond(w, h.log, apperr.OCRFailed(err))
+		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
 		return
 	}
 
 	if err := h.saveUploadedFile(file, id.String(), header.Filename); err != nil {
-		apperr.Respond(w, h.log, apperr.OCRFailed(err))
+		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
 		return
 	}
 
-	if err := PublishOCRJob(r.Context(), h.queue, id.String()); err != nil {
-		apperr.Respond(w, h.log, apperr.OCRFailed(err))
+	if err := PublishOCRJob(c.Request.Context(), h.queue, id.String()); err != nil {
+		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
 		return
 	}
 
 	h.log.Info("documento enfileirado", "document_id", id, "filename", header.Filename)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(extractResponse{ID: id.String(), Status: "pending"})
+	c.JSON(http.StatusAccepted, extractResponse{ID: id.String(), Status: "pending"})
+}
+
+type documentResponse struct {
+	ID            string  `json:"id"`
+	Status        string  `json:"status"`
+	Filename      string  `json:"filename"`
+	ExtractedText *string `json:"extracted_text,omitempty"`
+	ErrorMessage  *string `json:"error_message,omitempty"`
+}
+
+func (h *Handler) Get(c *gin.Context) {
+	idParam := c.Param("id")
+
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		apperr.Respond(c.Writer, h.log, apperr.InvalidFile(err))
+		return
+	}
+
+	doc, err := h.repository.GetByID(c.Request.Context(), id)
+	if err != nil {
+		apperr.Respond(c.Writer, h.log, apperr.NotFound(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, documentResponse{
+		ID:            doc.ID.String(),
+		Status:        doc.Status,
+		Filename:      doc.Filename,
+		ExtractedText: doc.ExtractedText,
+		ErrorMessage:  doc.ErrorMessage,
+	})
 }
 
 func (h *Handler) saveUploadedFile(src io.Reader, documentID, originalName string) error {
