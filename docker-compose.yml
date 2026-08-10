@@ -9,14 +9,13 @@ services:
       - .:/app
       - /app/tmp
       - uploads_data:/app/uploads
-    environment:
-      PORT: 8080
-      OCR_LANGUAGE: por
-      OCR_POOL_SIZE: 4
-      DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr_service?sslmode=disable
+    env_file:
+      - .env
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
 
   worker:
     build:
@@ -27,36 +26,35 @@ services:
       - .:/app
       - /app/tmp-worker
       - uploads_data:/app/uploads
-    environment:
-      OCR_LANGUAGE: por
-      OCR_POOL_SIZE: 4
-      DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr_service?sslmode=disable
-      AMQP_URL: amqp://ocr:ocr@rabbitmq:5672/
-      UPLOAD_DIR: /app/uploads
-      PROCESSING_TIMEOUT: 5m
+    env_file:
+      - .env
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ocr
-      RABBITMQ_DEFAULT_PASS: ocr
+    env_file:
+      - .env
 
   postgres:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ocr
-      POSTGRES_PASSWORD: ocr
-      POSTGRES_DB: ocr_service
+    env_file:
+      - .env
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ocr -d ocr_service"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
   adminer:
     image: adminer:latest
