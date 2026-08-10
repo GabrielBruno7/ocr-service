@@ -16,15 +16,25 @@ import (
 const maxUploadSize = 10 << 20
 
 type Handler struct {
-	processor ocr.Processor
-	log       *slog.Logger
+	processor  ocr.Processor
+	repository *Repository
+	log        *slog.Logger
 }
 
-func NewHandler(processor ocr.Processor, log *slog.Logger) *Handler {
-	return &Handler{processor: processor, log: log}
+func NewHandler(
+	processor ocr.Processor,
+	repository *Repository,
+	log *slog.Logger,
+) *Handler {
+	return &Handler{
+		processor:  processor,
+		repository: repository,
+		log:        log,
+	}
 }
 
 type extractResponse struct {
+	ID   string `json:"id"`
 	Text string `json:"text"`
 }
 
@@ -59,6 +69,12 @@ func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	id, err := h.repository.Create(r.Context(), header.Filename, text)
+	if err != nil {
+		apperr.Respond(w, h.log, apperr.OCRFailed(err))
+		return
+	}
+
 	h.log.Info("ocr concluído",
 		"filename", header.Filename,
 		"duration_ms", time.Since(start).Milliseconds(),
@@ -66,7 +82,7 @@ func (h *Handler) Extract(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(extractResponse{Text: text})
+	json.NewEncoder(w).Encode(extractResponse{ID: id.String(), Text: text})
 }
 
 func saveTempFile(src io.Reader, originalName string) (string, error) {

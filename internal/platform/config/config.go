@@ -6,9 +6,10 @@ import (
 )
 
 type Config struct {
-	Port         string
-	OCRLanguage  string
-	OCRPoolSize  int
+	Port        string
+	OCRLanguage string
+	OCRPoolSize int
+	DatabaseURL string
 }
 
 func Load() Config {
@@ -16,6 +17,7 @@ func Load() Config {
 		Port:        getEnv("PORT", "8080"),
 		OCRLanguage: getEnv("OCR_LANGUAGE", "por"),
 		OCRPoolSize: getEnvAsInt("OCR_POOL_SIZE", 4),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://ocr:ocr@postgres:5432/ocr_service?sslmode=disable"),
 	}
 }
 
