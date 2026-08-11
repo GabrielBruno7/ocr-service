@@ -2,10 +2,13 @@ package document
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/gabrielbruno7/ocr-service/internal/apperr"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -93,7 +96,12 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Document, erro
 		&doc.ID, &doc.Status, &doc.Filename, &doc.ExtractedText, &doc.ErrorMessage, &doc.ProcessingStartedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar documento: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperr.New(apperr.CodeNotFound,
+				fmt.Errorf("documento %s não encontrado: %w", id, err))
+		}
+		return nil, apperr.New(apperr.CodeInternal,
+			fmt.Errorf("erro ao buscar documento %s: %w", id, err))
 	}
 
 	return &doc, nil

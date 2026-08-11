@@ -38,10 +38,10 @@ func (h *Handler) Extract(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		if err.Error() == "http: request body too large" {
-			apperr.Respond(c.Writer, h.log, apperr.FileTooLarge(err))
+			apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeFileTooLarge, err))
 			return
 		}
-		apperr.Respond(c.Writer, h.log, apperr.InvalidFile(err))
+		apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeInvalidFile, err))
 		return
 	}
 	defer file.Close()
@@ -50,17 +50,17 @@ func (h *Handler) Extract(c *gin.Context) {
 
 	id, err := h.repository.CreatePending(c.Request.Context(), header.Filename)
 	if err != nil {
-		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
+		apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeOCRFailed, err))
 		return
 	}
 
 	if err := h.saveUploadedFile(file, id.String(), header.Filename); err != nil {
-		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
+		apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeOCRFailed, err))
 		return
 	}
 
 	if err := PublishOCRJob(c.Request.Context(), h.queue, id.String()); err != nil {
-		apperr.Respond(c.Writer, h.log, apperr.OCRFailed(err))
+		apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeOCRFailed, err))
 		return
 	}
 
@@ -82,13 +82,13 @@ func (h *Handler) Get(c *gin.Context) {
 
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		apperr.Respond(c.Writer, h.log, apperr.InvalidFile(err))
+		apperr.Respond(c.Writer, h.log, apperr.New(apperr.CodeInvalidFile, err))
 		return
 	}
 
 	doc, err := h.repository.GetByID(c.Request.Context(), id)
 	if err != nil {
-		apperr.Respond(c.Writer, h.log, apperr.NotFound(err))
+		apperr.Respond(c.Writer, h.log, err)
 		return
 	}
 

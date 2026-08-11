@@ -8,8 +8,35 @@ import (
 	"net/http"
 )
 
+type ErrorCode int
+
+// iota gera números sequenciais automaticamente a partir de 4000.
+const (
+	CodeFileTooLarge ErrorCode = iota + 4000
+	CodeInvalidFile
+	CodeOCRFailed
+	CodeNotFound
+)
+
+const CodeInternal ErrorCode = 5000
+
+type errorDefinition struct {
+	Message    string
+	HTTPStatus int
+}
+
+// registry é o único lugar onde cada código de erro é definido —
+// mensagem fixa e segura pro cliente + status HTTP correspondente.
+var registry = map[ErrorCode]errorDefinition{
+	CodeFileTooLarge: {"arquivo maior que o limite permitido (10MB)", http.StatusRequestEntityTooLarge},
+	CodeInvalidFile:  {"arquivo inválido ou ausente no formulário", http.StatusBadRequest},
+	CodeOCRFailed:    {"erro ao processar o documento", http.StatusInternalServerError},
+	CodeNotFound:     {"documento não encontrado", http.StatusNotFound},
+	CodeInternal:     {"erro interno no servidor", http.StatusInternalServerError},
+}
+
 type AppError struct {
-	Code       string
+	Code       ErrorCode
 	Message    string
 	HTTPStatus int
 	Err        error
@@ -26,38 +53,17 @@ func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-func FileTooLarge(err error) *AppError {
-	return &AppError{
-		Code:       "file_too_large",
-		Message:    "arquivo maior que o limite permitido (10MB)",
-		HTTPStatus: http.StatusRequestEntityTooLarge,
-		Err:        err,
+func New(code ErrorCode, err error) *AppError {
+	def, ok := registry[code]
+	if !ok {
+		def = registry[CodeInternal]
+		code = CodeInternal
 	}
-}
 
-func InvalidFile(err error) *AppError {
 	return &AppError{
-		Code:       "invalid_file",
-		Message:    "arquivo inválido ou ausente no formulário",
-		HTTPStatus: http.StatusBadRequest,
-		Err:        err,
-	}
-}
-
-func OCRFailed(err error) *AppError {
-	return &AppError{
-		Code:       "ocr_failed",
-		Message:    "erro ao processar o documento",
-		HTTPStatus: http.StatusInternalServerError,
-		Err:        err,
-	}
-}
-
-func NotFound(err error) *AppError {
-	return &AppError{
-		Code:       "document_not_found",
-		Message:    "documento não encontrado",
-		HTTPStatus: http.StatusNotFound,
+		Code:       code,
+		Message:    def.Message,
+		HTTPStatus: def.HTTPStatus,
 		Err:        err,
 	}
 }
@@ -65,10 +71,10 @@ func NotFound(err error) *AppError {
 func Respond(w http.ResponseWriter, log *slog.Logger, err error) {
 	var appErr *AppError
 	if errors.As(err, &appErr) {
-		log.Warn("requisição falhou", "code", appErr.Code, "error", appErr.Err)
+		logAppError(log, appErr)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(appErr.HTTPStatus)
-		json.NewEncoder(w).Encode(map[string]string{
+		json.NewEncoder(w).Encode(map[string]any{
 			"error":   appErr.Code,
 			"message": appErr.Message,
 		})
@@ -76,11 +82,18 @@ func Respond(w http.ResponseWriter, log *slog.Logger, err error) {
 	}
 
 	log.Error("erro inesperado", "error", err)
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   "internal_error",
+	json.NewEncoder(w).Encode(map[string]any{
+		"error":   CodeInternal,
 		"message": "erro interno no servidor",
 	})
+}
+
+func logAppError(log *slog.Logger, appErr *AppError) {
+	if appErr.HTTPStatus >= 500 {
+		log.Error("requisição falhou", "code", appErr.Code, "error", appErr.Err)
+	} else {
+		log.Warn("requisição falhou", "code", appErr.Code, "error", appErr.Err)
+	}
 }
