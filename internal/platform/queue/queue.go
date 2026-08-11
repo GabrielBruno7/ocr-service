@@ -14,6 +14,10 @@ type Queue struct {
 	channel *amqp.Channel
 }
 
+type Publisher interface {
+	Publish(ctx context.Context, body []byte) error
+}
+
 func New(amqpURL string) (*Queue, error) {
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {

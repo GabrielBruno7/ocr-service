@@ -17,13 +17,13 @@ import (
 const maxUploadSize = 10 << 20
 
 type Handler struct {
-	repository *Repository
-	queue      *queue.Queue
+	repository Repository
+	queue      queue.Publisher
 	uploadDir  string
 	log        *slog.Logger
 }
 
-func NewHandler(repository *Repository, q *queue.Queue, uploadDir string, log *slog.Logger) *Handler {
+func NewHandler(repository Repository, q queue.Publisher, uploadDir string, log *slog.Logger) *Handler {
 	return &Handler{repository: repository, queue: q, uploadDir: uploadDir, log: log}
 }
 

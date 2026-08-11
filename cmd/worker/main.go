@@ -56,7 +56,7 @@ func main() {
 func handleMessage(
 	ctx context.Context,
 	msg amqp.Delivery,
-	repository *document.Repository,
+	repository document.Repository,
 	processor ocr.Processor,
 	uploadDir string,
 	log *slog.Logger,

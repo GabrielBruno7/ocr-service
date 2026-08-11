@@ -12,7 +12,7 @@ type OCRJob struct {
 	DocumentID string `json:"document_id"`
 }
 
-func PublishOCRJob(ctx context.Context, q *queue.Queue, documentID string) error {
+func PublishOCRJob(ctx context.Context, q queue.Publisher, documentID string) error {
 	job := OCRJob{DocumentID: documentID}
 
 	body, err := json.Marshal(job)

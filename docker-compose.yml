@@ -15,7 +15,7 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   worker:
     build:
@@ -32,7 +32,7 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
@@ -41,6 +41,11 @@ services:
       - "15672:15672"
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 
   postgres:
     image: postgres:16-alpine
