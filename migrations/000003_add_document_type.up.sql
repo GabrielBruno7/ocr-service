@@ -1,0 +1,1 @@
+ALTER TABLE documents ADD COLUMN document_type VARCHAR(20);

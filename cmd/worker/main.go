@@ -121,7 +121,9 @@ func handleMessage(
 		return
 	}
 
-	if err := repository.MarkAsDone(ctx, id, text); err != nil {
+	documentType := document.Classify(text)
+
+	if err := repository.MarkAsDone(ctx, id, text, documentType); err != nil {
 		log.Error("erro ao marcar como done", "document_id", id, "error", err)
 		msg.Nack(false, true)
 		return

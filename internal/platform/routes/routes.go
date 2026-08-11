@@ -2,11 +2,11 @@ package routes
 
 import "github.com/gin-gonic/gin"
 
-type RouteRegistrar interface {
+type RouteRegister interface {
 	RegisterRoutes(router *gin.Engine)
 }
 
-func New(handlers ...RouteRegistrar) *gin.Engine {
+func New(handlers ...RouteRegister) *gin.Engine {
 	router := gin.Default()
 
 	router.GET("/health", func(c *gin.Context) { c.String(200, "ok") })

@@ -54,7 +54,7 @@ func (r *memoryRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) e
 	return nil
 }
 
-func (r *memoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string) error {
+func (r *memoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -64,6 +64,8 @@ func (r *memoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extract
 	}
 	doc.Status = StatusDone
 	doc.ExtractedText = &extractedText
+	docType := string(documentType)
+	doc.DocumentType = &docType
 	return nil
 }
 

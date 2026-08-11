@@ -73,6 +73,7 @@ type documentResponse struct {
 	ID            string  `json:"id"`
 	Status        string  `json:"status"`
 	Filename      string  `json:"filename"`
+	DocumentType  *string `json:"document_type,omitempty"`
 	ExtractedText *string `json:"extracted_text,omitempty"`
 	ErrorMessage  *string `json:"error_message,omitempty"`
 }
@@ -96,6 +97,7 @@ func (h *Handler) Get(c *gin.Context) {
 		ID:            doc.ID.String(),
 		Status:        doc.Status,
 		Filename:      doc.Filename,
+		DocumentType:  doc.DocumentType,
 		ExtractedText: doc.ExtractedText,
 		ErrorMessage:  doc.ErrorMessage,
 	})

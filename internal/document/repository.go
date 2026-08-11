@@ -42,13 +42,13 @@ func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Docume
 	var doc Document
 
 	query := `
-		SELECT id, status, filename, extracted_text, error_message, processing_started_at
+		SELECT id, status, filename, document_type, extracted_text, error_message, processing_started_at
 		FROM documents
 		WHERE id = $1
 	`
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&doc.ID, &doc.Status, &doc.Filename, &doc.ExtractedText, &doc.ErrorMessage, &doc.ProcessingStartedAt,
+		&doc.ID, &doc.Status, &doc.Filename, &doc.DocumentType, &doc.ExtractedText, &doc.ErrorMessage, &doc.ProcessingStartedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -72,9 +72,9 @@ func (r *postgresRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string) error {
-	query := `UPDATE documents SET status = $1, extracted_text = $2, updated_at = now() WHERE id = $3`
-	_, err := r.db.Exec(ctx, query, StatusDone, extractedText, id)
+func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType) error {
+	query := `UPDATE documents SET status = $1, extracted_text = $2, document_type = $3, updated_at = now() WHERE id = $4`
+	_, err := r.db.Exec(ctx, query, StatusDone, extractedText, string(documentType), id)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao marcar documento como concluído: %w", err))
