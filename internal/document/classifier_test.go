@@ -43,3 +43,27 @@ func TestShouldClassifyDocumentWithUnknowTypeWhenExtractAnEmptyText(t *testing.T
 
 	assert.Equal(t, DocumentTypeUnknown, result)
 }
+
+func TestShouldClassifyDocumentWithCNHTypeEvenWithOCRTypo(t *testing.T) {
+	text := "CARTELRA NACIONAL DE HABILITAÇÃO\nDRIVER LICENSE"
+
+	result := Classify(text)
+
+	assert.Equal(t, DocumentTypeCNH, result)
+}
+
+func TestShouldClassifyDocumentWithCNHTypeEvenWithLineBreakInsideWord(t *testing.T) {
+	text := "CARTEIRA NA\nCIONAL DE HABILITAÇÃO"
+
+	result := Classify(text)
+
+	assert.Equal(t, DocumentTypeCNH, result)
+}
+
+func TestShouldNotClassifyRandomTextAsCNHEvenWithFuzzyMatching(t *testing.T) {
+	text := "este é um texto qualquer sem relação com documentos de identidade"
+
+	result := Classify(text)
+
+	assert.Equal(t, DocumentTypeUnknown, result)
+}

@@ -2,6 +2,7 @@ package ocr
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/otiai10/gosseract/v2"
 )
@@ -23,13 +24,20 @@ func NewTesseractProcessor(languages string, poolSize int) Processor {
 }
 
 func (t *tesseractProcessor) Process(imagePath string) (string, error) {
+	preprocessPath, err := Preprocess(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("erro ao pré-processar imagem: %w", err)
+	}
+
+	defer os.Remove(preprocessPath)
+
 	client := <-t.pool
 
 	defer func() {
 		t.pool <- client
 	}()
 
-	if err := client.SetImage(imagePath); err != nil {
+	if err := client.SetImage(preprocessPath); err != nil {
 		return "", fmt.Errorf("erro ao carregar imagem: %w", err)
 	}
 
