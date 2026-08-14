@@ -19,6 +19,7 @@ type Document struct {
 	Filename            string
 	DocumentType        *string
 	ExtractedText       *string
+	ExtractedFields     *ExtractedFields
 	ErrorMessage        *string
 	ProcessingStartedAt *time.Time
 }

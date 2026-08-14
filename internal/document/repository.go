@@ -2,6 +2,7 @@ package document
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -40,15 +41,16 @@ func (r *postgresRepository) CreatePending(ctx context.Context, filename string)
 
 func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
 	var doc Document
+	var fieldsJSON []byte
 
 	query := `
-		SELECT id, status, filename, document_type, extracted_text, error_message, processing_started_at
+		SELECT id, status, filename, document_type, extracted_text, extracted_fields, error_message, processing_started_at
 		FROM documents
 		WHERE id = $1
 	`
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&doc.ID, &doc.Status, &doc.Filename, &doc.DocumentType, &doc.ExtractedText, &doc.ErrorMessage, &doc.ProcessingStartedAt,
+		&doc.ID, &doc.Status, &doc.Filename, &doc.DocumentType, &doc.ExtractedText, &fieldsJSON, &doc.ErrorMessage, &doc.ProcessingStartedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,6 +59,13 @@ func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Docume
 		}
 		return nil, apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao buscar documento %s: %w", id, err))
+	}
+
+	if fieldsJSON != nil {
+		var fields ExtractedFields
+		if err := json.Unmarshal(fieldsJSON, &fields); err == nil {
+			doc.ExtractedFields = &fields
+		}
 	}
 
 	return &doc, nil
@@ -72,9 +81,15 @@ func (r *postgresRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType) error {
-	query := `UPDATE documents SET status = $1, extracted_text = $2, document_type = $3, updated_at = now() WHERE id = $4`
-	_, err := r.db.Exec(ctx, query, StatusDone, extractedText, string(documentType), id)
+func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType, fields ExtractedFields) error {
+	fieldsJSON, err := json.Marshal(fields)
+	if err != nil {
+		return apperr.New(apperr.CodeInternal,
+			fmt.Errorf("erro ao serializar campos extraídos: %w", err))
+	}
+
+	query := `UPDATE documents SET status = $1, extracted_text = $2, document_type = $3, extracted_fields = $4, updated_at = now() WHERE id = $5`
+	_, err = r.db.Exec(ctx, query, StatusDone, extractedText, string(documentType), fieldsJSON, id)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao marcar documento como concluído: %w", err))

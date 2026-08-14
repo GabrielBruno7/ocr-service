@@ -70,12 +70,13 @@ func (h *Handler) Extract(c *gin.Context) {
 }
 
 type documentResponse struct {
-	ID            string  `json:"id"`
-	Status        string  `json:"status"`
-	Filename      string  `json:"filename"`
-	DocumentType  *string `json:"document_type,omitempty"`
-	ExtractedText *string `json:"extracted_text,omitempty"`
-	ErrorMessage  *string `json:"error_message,omitempty"`
+	ID              string           `json:"id"`
+	Status          string           `json:"status"`
+	Filename        string           `json:"filename"`
+	DocumentType    *string          `json:"document_type,omitempty"`
+	ExtractedText   *string          `json:"extracted_text,omitempty"`
+	ExtractedFields *ExtractedFields `json:"extracted_fields,omitempty"`
+	ErrorMessage    *string          `json:"error_message,omitempty"`
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -94,12 +95,13 @@ func (h *Handler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, documentResponse{
-		ID:            doc.ID.String(),
-		Status:        doc.Status,
-		Filename:      doc.Filename,
-		DocumentType:  doc.DocumentType,
-		ExtractedText: doc.ExtractedText,
-		ErrorMessage:  doc.ErrorMessage,
+		ID:              doc.ID.String(),
+		Status:          doc.Status,
+		Filename:        doc.Filename,
+		DocumentType:    doc.DocumentType,
+		ExtractedText:   doc.ExtractedText,
+		ExtractedFields: doc.ExtractedFields,
+		ErrorMessage:    doc.ErrorMessage,
 	})
 }
 
