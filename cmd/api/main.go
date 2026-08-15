@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 
-	"github.com/gabrielbruno7/ocr-service/internal/document"
+	"github.com/gabrielbruno7/ocr-service/internal/document/handler"
+	"github.com/gabrielbruno7/ocr-service/internal/document/infrainstructure"
+	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/config"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/database"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/logger"
@@ -14,7 +16,6 @@ import (
 func main() {
 	log := logger.New()
 	cfg := config.Load()
-
 	ctx := context.Background()
 
 	db, err := database.New(ctx, cfg.DatabaseURL)
@@ -31,11 +32,14 @@ func main() {
 	}
 	defer queue.Close()
 
-	repository := document.NewRepository(db)
+	documentRepository := infrainstructure.NewDocumentRepository(db)
 
-	router := routes.New(
-		document.NewHandler(repository, queue, cfg.UploadDir, log),
-	)
+	extractDocumentUsecase := usecase.NewExtractDocumentUsecase(ctx, queue, cfg.UploadDir, documentRepository)
+	getDocumentUsecase := usecase.NewGetDocumentUsecase(ctx, documentRepository)
+
+	documentHandler := handler.NewDocumentHandler(log, getDocumentUsecase, extractDocumentUsecase)
+
+	router := routes.New(documentHandler)
 
 	log.Info("servidor iniciado", "port", cfg.Port)
 	if err := router.Run(":" + cfg.Port); err != nil {

@@ -1,20 +1,52 @@
-package document
+package domain
 
 import (
+	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/agnivade/levenshtein"
+	"github.com/google/uuid"
 	"golang.org/x/text/unicode/norm"
 )
 
+const (
+	StatusPending    = "pending"
+	StatusProcessing = "processing"
+	StatusDone       = "done"
+	StatusFailed     = "failed"
+)
+
 type DocumentType string
+
+var (
+	cpfPattern = regexp.MustCompile(`\d{3}\.\d{3}\.\d{3}-\d{2}`)
+
+	namePattern = regexp.MustCompile(`(?i)NOME(?:\s+E\s+SOBRENOME)?[:\s]+([A-ZÀ-Ú\s]+?)(?:\n|$)`)
+)
 
 const (
 	DocumentTypeCNH     DocumentType = "cnh"
 	DocumentTypeRG      DocumentType = "rg"
 	DocumentTypeUnknown DocumentType = "unknown"
 )
+
+type ExtractedFields struct {
+	Name string `json:"name,omitempty"`
+	CPF  string `json:"cpf,omitempty"`
+}
+
+type Document struct {
+	ID                  uuid.UUID
+	Status              string
+	Filename            string
+	DocumentType        *string
+	ExtractedText       *string
+	ExtractedFields     *ExtractedFields
+	ErrorMessage        *string
+	ProcessingStartedAt *time.Time
+}
 
 const maxEditDistanceRatio = 0.2
 
@@ -80,4 +112,18 @@ func fuzzyContains(text, keyword string) bool {
 	}
 
 	return false
+}
+
+func ExtractFields(extractedText string) ExtractedFields {
+	fields := ExtractedFields{}
+
+	if match := cpfPattern.FindString(extractedText); match != "" {
+		fields.CPF = match
+	}
+
+	if match := namePattern.FindStringSubmatch(extractedText); len(match) > 1 {
+		fields.Name = strings.TrimSpace(match[1])
+	}
+
+	return fields
 }

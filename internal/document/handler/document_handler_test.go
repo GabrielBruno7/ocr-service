@@ -1,6 +1,7 @@
-package document
+package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http/httptest"
@@ -9,23 +10,28 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
+	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
 )
 
 func TestShouldExtractImageTextSuccessfully(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	repo := newMemoryRepository()
+	repo := domain.NewMemoryRepository()
 
 	text := "texto extraído de teste"
 	docID := uuid.New()
-	repo.seed(&Document{
+	repo.Seed(&domain.Document{
 		ID:            docID,
-		Status:        StatusDone,
+		Status:        domain.StatusDone,
 		Filename:      "teste.png",
 		ExtractedText: &text,
 	})
 
-	handler := NewHandler(repo, nil, "/tmp", slog.Default())
+	ctx := context.Background()
+	getDocumentUsecase := usecase.NewGetDocumentUsecase(ctx, repo)
+	handler := NewDocumentHandler(slog.Default(), getDocumentUsecase, nil)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -36,20 +42,22 @@ func TestShouldExtractImageTextSuccessfully(t *testing.T) {
 
 	assert.Equal(t, 200, w.Code)
 
-	var response documentResponse
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Equal(t, docID.String(), response.ID)
-	assert.Equal(t, StatusDone, response.Status)
-	assert.Equal(t, text, *response.ExtractedText)
+	assert.Equal(t, docID.String(), response["id"])
+	assert.Equal(t, string(domain.StatusDone), response["status"])
+	assert.Equal(t, text, response["extracted_text"])
 }
 
 func TestSholdThrowAnErrorWhenNotFoundAnyDocumentForProvidedId(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	repo := newMemoryRepository()
+	repo := domain.NewMemoryRepository()
 
-	handler := NewHandler(repo, nil, "/tmp", slog.Default())
+	ctx := context.Background()
+	getDocumentUsecase := usecase.NewGetDocumentUsecase(ctx, repo)
+	handler := NewDocumentHandler(slog.Default(), getDocumentUsecase, nil)
 
 	unknownID := uuid.New()
 

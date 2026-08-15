@@ -1,4 +1,4 @@
-package document
+package domain
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Repository interface {
+type DocumentRepositoryInterface interface {
 	CreatePending(ctx context.Context, filename string) (uuid.UUID, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*Document, error)
 	MarkAsProcessing(ctx context.Context, id uuid.UUID) error

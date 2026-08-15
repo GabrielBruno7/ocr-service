@@ -1,4 +1,4 @@
-package document
+package domain
 
 import (
 	"context"
@@ -11,16 +11,16 @@ import (
 	"github.com/gabrielbruno7/ocr-service/internal/apperr"
 )
 
-type memoryRepository struct {
+type MemoryRepository struct {
 	mu   sync.Mutex
 	docs map[uuid.UUID]*Document
 }
 
-func newMemoryRepository() *memoryRepository {
-	return &memoryRepository{docs: make(map[uuid.UUID]*Document)}
+func NewMemoryRepository() *MemoryRepository {
+	return &MemoryRepository{docs: make(map[uuid.UUID]*Document)}
 }
 
-func (r *memoryRepository) CreatePending(ctx context.Context, filename string) (uuid.UUID, error) {
+func (r *MemoryRepository) CreatePending(ctx context.Context, filename string) (uuid.UUID, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -29,7 +29,7 @@ func (r *memoryRepository) CreatePending(ctx context.Context, filename string) (
 	return id, nil
 }
 
-func (r *memoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
+func (r *MemoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -40,7 +40,7 @@ func (r *memoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document
 	return doc, nil
 }
 
-func (r *memoryRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) error {
+func (r *MemoryRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (r *memoryRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) e
 	return nil
 }
 
-func (r *memoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType, fields ExtractedFields) error {
+func (r *MemoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType, fields ExtractedFields) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -70,7 +70,7 @@ func (r *memoryRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extract
 	return nil
 }
 
-func (r *memoryRepository) MarkAsFailed(ctx context.Context, id uuid.UUID, errMsg string) error {
+func (r *MemoryRepository) MarkAsFailed(ctx context.Context, id uuid.UUID, errMsg string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -83,7 +83,7 @@ func (r *memoryRepository) MarkAsFailed(ctx context.Context, id uuid.UUID, errMs
 	return nil
 }
 
-func (r *memoryRepository) seed(doc *Document) {
+func (r *MemoryRepository) Seed(doc *Document) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.docs[doc.ID] = doc

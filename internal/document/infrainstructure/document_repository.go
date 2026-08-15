@@ -1,4 +1,4 @@
-package document
+package infrainstructure
 
 import (
 	"context"
@@ -11,17 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/gabrielbruno7/ocr-service/internal/apperr"
+	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
 )
 
-type postgresRepository struct {
+type documentRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) Repository {
-	return &postgresRepository{db: db}
+func NewDocumentRepository(db *pgxpool.Pool) domain.DocumentRepositoryInterface {
+	return &documentRepository{db: db}
 }
 
-func (r *postgresRepository) CreatePending(ctx context.Context, filename string) (uuid.UUID, error) {
+func (r *documentRepository) CreatePending(ctx context.Context, filename string) (uuid.UUID, error) {
 	var id uuid.UUID
 
 	query := `
@@ -30,7 +31,7 @@ func (r *postgresRepository) CreatePending(ctx context.Context, filename string)
 		RETURNING id
 	`
 
-	err := r.db.QueryRow(ctx, query, StatusPending, filename).Scan(&id)
+	err := r.db.QueryRow(ctx, query, domain.StatusPending, filename).Scan(&id)
 	if err != nil {
 		return uuid.Nil, apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao criar documento pendente: %w", err))
@@ -39,8 +40,8 @@ func (r *postgresRepository) CreatePending(ctx context.Context, filename string)
 	return id, nil
 }
 
-func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
-	var doc Document
+func (r *documentRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Document, error) {
+	var doc domain.Document
 	var fieldsJSON []byte
 
 	query := `
@@ -62,7 +63,7 @@ func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Docume
 	}
 
 	if fieldsJSON != nil {
-		var fields ExtractedFields
+		var fields domain.ExtractedFields
 		if err := json.Unmarshal(fieldsJSON, &fields); err == nil {
 			doc.ExtractedFields = &fields
 		}
@@ -71,9 +72,9 @@ func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Docume
 	return &doc, nil
 }
 
-func (r *postgresRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) error {
+func (r *documentRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE documents SET status = $1, processing_started_at = now(), updated_at = now() WHERE id = $2`
-	_, err := r.db.Exec(ctx, query, StatusProcessing, id)
+	_, err := r.db.Exec(ctx, query, domain.StatusProcessing, id)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao marcar documento como em processamento: %w", err))
@@ -81,15 +82,26 @@ func (r *postgresRepository) MarkAsProcessing(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extractedText string, documentType DocumentType, fields ExtractedFields) error {
+func (r *documentRepository) MarkAsDone(
+	ctx context.Context,
+	id uuid.UUID,
+	extractedText string,
+	documentType domain.DocumentType,
+	fields domain.ExtractedFields,
+) error {
 	fieldsJSON, err := json.Marshal(fields)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao serializar campos extraídos: %w", err))
 	}
 
-	query := `UPDATE documents SET status = $1, extracted_text = $2, document_type = $3, extracted_fields = $4, updated_at = now() WHERE id = $5`
-	_, err = r.db.Exec(ctx, query, StatusDone, extractedText, string(documentType), fieldsJSON, id)
+	query := `
+		UPDATE documents
+		SET status = $1, extracted_text = $2, document_type = $3, extracted_fields = $4, updated_at = now()
+		WHERE id = $5
+	`
+
+	_, err = r.db.Exec(ctx, query, domain.StatusDone, extractedText, string(documentType), fieldsJSON, id)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao marcar documento como concluído: %w", err))
@@ -97,9 +109,9 @@ func (r *postgresRepository) MarkAsDone(ctx context.Context, id uuid.UUID, extra
 	return nil
 }
 
-func (r *postgresRepository) MarkAsFailed(ctx context.Context, id uuid.UUID, errMsg string) error {
+func (r *documentRepository) MarkAsFailed(ctx context.Context, id uuid.UUID, errMsg string) error {
 	query := `UPDATE documents SET status = $1, error_message = $2, updated_at = now() WHERE id = $3`
-	_, err := r.db.Exec(ctx, query, StatusFailed, errMsg, id)
+	_, err := r.db.Exec(ctx, query, domain.StatusFailed, errMsg, id)
 	if err != nil {
 		return apperr.New(apperr.CodeInternal,
 			fmt.Errorf("erro ao marcar documento como falho: %w", err))

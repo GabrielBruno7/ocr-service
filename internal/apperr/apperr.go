@@ -10,7 +10,6 @@ import (
 
 type ErrorCode int
 
-// iota gera números sequenciais automaticamente a partir de 4000.
 const (
 	CodeFileTooLarge ErrorCode = iota + 4000
 	CodeInvalidFile
@@ -25,8 +24,6 @@ type errorDefinition struct {
 	HTTPStatus int
 }
 
-// registry é o único lugar onde cada código de erro é definido —
-// mensagem fixa e segura pro cliente + status HTTP correspondente.
 var registry = map[ErrorCode]errorDefinition{
 	CodeFileTooLarge: {"arquivo maior que o limite permitido (10MB)", http.StatusRequestEntityTooLarge},
 	CodeInvalidFile:  {"arquivo inválido ou ausente no formulário", http.StatusBadRequest},

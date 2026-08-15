@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gabrielbruno7/ocr-service/internal/document"
+	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
+	"github.com/gabrielbruno7/ocr-service/internal/document/infrainstructure"
+	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
 	"github.com/gabrielbruno7/ocr-service/internal/ocr"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/config"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/database"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/logger"
 	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
-	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -37,7 +38,7 @@ func main() {
 	}
 	defer q.Close()
 
-	repository := document.NewRepository(db)
+	documentRepository := infrainstructure.NewDocumentRepository(db)
 	processor := ocr.NewTesseractProcessor(cfg.OCRLanguage, cfg.OCRPoolSize)
 
 	msgs, err := q.Consume()
@@ -49,32 +50,27 @@ func main() {
 	log.Info("worker iniciado, aguardando mensagens...")
 
 	for msg := range msgs {
-		handleMessage(ctx, msg, repository, processor, cfg.UploadDir, log, cfg.ProcessingTimeout)
+		handleMessage(ctx, msg, documentRepository, processor, cfg.UploadDir, log, cfg.ProcessingTimeout)
 	}
 }
 
 func handleMessage(
 	ctx context.Context,
 	msg amqp.Delivery,
-	repository document.Repository,
+	repository domain.DocumentRepositoryInterface,
 	processor ocr.Processor,
 	uploadDir string,
 	log *slog.Logger,
 	processingTimeout time.Duration,
 ) {
-	var job document.OCRJob
+	var job usecase.ExtractDocumentJob
 	if err := json.Unmarshal(msg.Body, &job); err != nil {
 		log.Error("mensagem inválida, descartando", "error", err)
 		msg.Nack(false, false)
 		return
 	}
 
-	id, err := uuid.Parse(job.DocumentID)
-	if err != nil {
-		log.Error("document_id inválido", "error", err)
-		msg.Nack(false, false)
-		return
-	}
+	id := job.DocumentID
 
 	doc, err := repository.GetByID(ctx, id)
 	if err != nil {
@@ -83,13 +79,13 @@ func handleMessage(
 		return
 	}
 
-	if doc.Status == document.StatusDone {
+	if doc.Status == domain.StatusDone {
 		log.Info("documento já processado, ignorando", "document_id", id)
 		msg.Ack(false)
 		return
 	}
 
-	if doc.Status == document.StatusProcessing {
+	if doc.Status == domain.StatusProcessing {
 		if doc.ProcessingStartedAt != nil && time.Since(*doc.ProcessingStartedAt) < processingTimeout {
 			log.Info("documento já está sendo processado por outro worker, ignorando",
 				"document_id", id, "processing_started_at", doc.ProcessingStartedAt)
@@ -99,8 +95,6 @@ func handleMessage(
 		log.Warn("documento estava em processamento há muito tempo, reprocessando",
 			"document_id", id, "processing_started_at", doc.ProcessingStartedAt)
 	}
-
-	log.Info("processando documento", "document_id", id, "filename", doc.Filename)
 
 	if err := repository.MarkAsProcessing(ctx, id); err != nil {
 		log.Error("erro ao marcar como processing", "document_id", id, "error", err)
@@ -121,8 +115,8 @@ func handleMessage(
 		return
 	}
 
-	documentType := document.Classify(text)
-	fields := document.ExtractFields(text)
+	documentType := domain.Classify(text)
+	fields := domain.ExtractFields(text)
 
 	if err := repository.MarkAsDone(ctx, id, text, documentType, fields); err != nil {
 		log.Error("erro ao marcar como done", "document_id", id, "error", err)
@@ -130,6 +124,6 @@ func handleMessage(
 		return
 	}
 
-	log.Info("documento processado com sucesso", "document_id", id, "text_length", len(text))
+	log.Info("documento processado com sucesso", "document_id", id)
 	msg.Ack(false)
 }
