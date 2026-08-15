@@ -22,6 +22,8 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     command: ["air", "-c", ".air.worker.toml"]
+    deploy:
+      replicas: 2
     volumes:
       - .:/app
       - /app/tmp-worker
