@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 
-	"github.com/gabrielbruno7/ocr-service/internal/document/handler"
-	"github.com/gabrielbruno7/ocr-service/internal/document/infrainstructure"
-	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/config"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/database"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/logger"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/routes"
+	"github.com/ocr-service/ocr-service/internal/document/handler"
+	"github.com/ocr-service/ocr-service/internal/document/infrainstructure"
+	"github.com/ocr-service/ocr-service/internal/document/usecase"
+	"github.com/ocr-service/ocr-service/internal/platform/config"
+	"github.com/ocr-service/ocr-service/internal/platform/database"
+	"github.com/ocr-service/ocr-service/internal/platform/logger"
+	"github.com/ocr-service/ocr-service/internal/platform/queue"
+	"github.com/ocr-service/ocr-service/internal/platform/routes"
 )
 
 func main() {

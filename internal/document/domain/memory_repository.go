@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/gabrielbruno7/ocr-service/internal/apperr"
+	"github.com/ocr-service/ocr-service/internal/apperr"
 )
 
 type MemoryRepository struct {

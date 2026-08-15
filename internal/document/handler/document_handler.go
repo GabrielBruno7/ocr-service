@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gabrielbruno7/ocr-service/internal/apperr"
-	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
+	"github.com/ocr-service/ocr-service/internal/apperr"
+	"github.com/ocr-service/ocr-service/internal/document/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

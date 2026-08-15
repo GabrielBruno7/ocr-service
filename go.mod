@@ -1,4 +1,4 @@
-module github.com/gabrielbruno7/ocr-service
+module github.com/ocr-service/ocr-service
 
 go 1.25.0
 

@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/gabrielbruno7/ocr-service/internal/apperr"
-	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
+	"github.com/ocr-service/ocr-service/internal/apperr"
+	"github.com/ocr-service/ocr-service/internal/document/domain"
 )
 
 type documentRepository struct {

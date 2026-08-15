@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
-	"github.com/gabrielbruno7/ocr-service/internal/document/infrainstructure"
-	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
-	"github.com/gabrielbruno7/ocr-service/internal/ocr"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/config"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/database"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/logger"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
+	"github.com/ocr-service/ocr-service/internal/document/domain"
+	"github.com/ocr-service/ocr-service/internal/document/infrainstructure"
+	"github.com/ocr-service/ocr-service/internal/document/usecase"
+	"github.com/ocr-service/ocr-service/internal/ocr"
+	"github.com/ocr-service/ocr-service/internal/platform/config"
+	"github.com/ocr-service/ocr-service/internal/platform/database"
+	"github.com/ocr-service/ocr-service/internal/platform/logger"
+	"github.com/ocr-service/ocr-service/internal/platform/queue"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

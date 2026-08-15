@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gabrielbruno7/ocr-service/internal/apperr"
-	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
-	"github.com/gabrielbruno7/ocr-service/internal/platform/queue"
+	"github.com/ocr-service/ocr-service/internal/apperr"
+	"github.com/ocr-service/ocr-service/internal/document/domain"
+	"github.com/ocr-service/ocr-service/internal/platform/queue"
 )
 
 type ExtractDocumentUsecase struct {

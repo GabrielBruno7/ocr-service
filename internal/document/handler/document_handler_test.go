@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/gabrielbruno7/ocr-service/internal/document/domain"
-	"github.com/gabrielbruno7/ocr-service/internal/document/usecase"
+	"github.com/ocr-service/ocr-service/internal/document/domain"
+	"github.com/ocr-service/ocr-service/internal/document/usecase"
 )
 
 func TestShouldExtractImageTextSuccessfully(t *testing.T) {
